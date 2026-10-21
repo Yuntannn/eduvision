@@ -1,0 +1,57 @@
+[project]
+name = "eduvision"
+version = "0.1.0"
+description = "EduVision backend: analyse educational images with a LangGraph workflow"
+readme = "README.md"
+authors = [
+    { name = "Yuntannnn", email = "jonathan2014max@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.159.1",
+    "langchain-anthropic>=1.7.6",
+    "langchain-core>=1.6.13",
+    "langgraph>=1.2.16",
+    "pydantic-settings>=2.16.1",
+    "python-multipart>=0.0.32",
+    "sqlmodel>=0.0.48",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true                   # strict checking for src/
+ignore_missing_imports = true   # don't fail on third-party libs without type stubs
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false   # test functions don't need full annotations
+disallow_incomplete_defs = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["specs"]      # ruff 0.17 also formats Markdown; specs are docs, not code
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+# E/F: pycodestyle + pyflakes, I: import sorting, B: bugbear,
+# UP: modern Python syntax, SIM: simplifications

@@ -19,8 +19,8 @@
 
 ```
             ┌─────────────────────────────────────────────┐
- Client ──► │ FastAPI routers (api/)                       │
- (Swagger,  │   /health  /api/v1/uploads  /api/v1/analyses │
+ Client ──► │ FastAPI routers (api/)                      │
+ (Swagger,  │   /health  /api/v1/uploads  /api/v1/analyses│
   curl)     └──────────────┬──────────────────────────────┘
                            │
                 ┌──────────▼───────────┐
@@ -34,9 +34,9 @@
         └──────────────┘     └─────┬──────────────────────────┘
                                    │
                          ┌─────────▼─────────┐
-                         │ LLM provider       │  llm/factory.py
-                         │ (real or fake)     │
-                         └────────────────────┘
+                         │ LLM provider      │  llm/factory.py
+                         │ (real or fake)    │
+                         └───────────────────┘
 ```
 
 **Layering rules**

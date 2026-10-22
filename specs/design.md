@@ -286,6 +286,12 @@ class AnalysisState(TypedDict, total=False):
 - Merge `develop` into `main` at the end of this version, tagged `v0.1.0`.
 - Commit messages follow Conventional Commits: `feat:`, `fix:`, `test:`, `chore:`, `docs:`.
 
+### Release process
+
+1. Open a PR from `develop` into `main` (titled "Release vX.Y.Z") and merge it.
+2. Tag the merge commit on `main` as `vX.Y.Z`, push the tag and create a GitHub release for it.
+3. Open a PR from `main` back into `develop` and merge it, so the release merge commit is in `develop` and the branches stay aligned.
+
 ## 11. Code Quality Configuration
 
 Add the following to `pyproject.toml`.

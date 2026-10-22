@@ -8,6 +8,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from eduvision.workflow.errors import StepLimitExceededError
 from eduvision.workflow.nodes import classify, clean, extract, generate
+from eduvision.workflow.progress import WorkflowProgress
 from eduvision.workflow.state import AnalysisState
 
 HAS_TEXT = "has text"
@@ -41,20 +42,26 @@ def run_workflow(
     image_media_type: str,
     recursion_limit: int,
     analysis_id: str | None = None,
+    progress: WorkflowProgress | None = None,
 ) -> AnalysisState:
     """Run the analysis; raises StepLimitExceededError if `recursion_limit` steps are not enough.
 
     A run that finds no text returns normally with `failure_reason == "no_text_found"`.
+    Pass a `progress` tracker to keep the tokens and text produced so far if the run raises.
     """
     initial: AnalysisState = {
         "analysis_id": analysis_id,
         "image_bytes": image_bytes,
         "image_media_type": image_media_type,
-        "input_tokens": 0,
-        "output_tokens": 0,
     }
     try:
-        result = build_graph(model).invoke(initial, config={"recursion_limit": recursion_limit})
+        result = build_graph(model).invoke(
+            initial,
+            config={
+                "recursion_limit": recursion_limit,
+                "configurable": {"progress": progress or WorkflowProgress()},
+            },
+        )
     except GraphRecursionError as exc:
         raise StepLimitExceededError(
             f"Workflow exceeded the limit of {recursion_limit} steps."

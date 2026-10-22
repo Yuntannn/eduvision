@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from pathlib import Path
 
+import anthropic._base_client as anthropic_client
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -29,6 +30,26 @@ def default_data_dir_untouched() -> Iterator[None]:
     )
 
 
+@pytest.fixture(autouse=True)
+def real_llm_attempts(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
+    """Block every request to the Anthropic API, and fail any test that attempts one.
+
+    All Anthropic traffic (including through ChatAnthropic) goes through the SDK's `request`.
+    The call raises, and the attempt is also recorded and asserted on at teardown, so a test
+    can't pass by swallowing the error (the API turns unexpected errors into a 500 response).
+    """
+    attempts: list[str] = []
+
+    def blocked(self: object, *args: object, **kwargs: object) -> None:
+        attempts.append(type(self).__name__)
+        raise AssertionError("A test tried to call the real Anthropic API; inject a fake model.")
+
+    monkeypatch.setattr(anthropic_client.SyncAPIClient, "request", blocked)
+    monkeypatch.setattr(anthropic_client.AsyncAPIClient, "request", blocked)
+    yield attempts
+    assert not attempts, f"Test attempted real Anthropic API calls via: {attempts}"
+
+
 @pytest.fixture
 def upload_dir(tmp_path: Path) -> Path:
     return tmp_path / "uploads"
@@ -41,6 +62,7 @@ def isolated_settings(
     """Point every test at its own temporary database and upload directory."""
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("UPLOAD_DIR", str(upload_dir))
+    monkeypatch.setenv("LLM_PROVIDER", "fake")  # never build a real client or need a real key
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

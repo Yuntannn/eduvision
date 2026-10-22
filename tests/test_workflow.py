@@ -4,6 +4,7 @@ from eduvision.llm.errors import InvalidLLMOutputError, LLMUnavailableError
 from eduvision.schemas.llm_outputs import Classification, Explanation, ExtractionResult
 from eduvision.workflow.errors import StepLimitExceededError
 from eduvision.workflow.graph import build_graph, run_workflow
+from eduvision.workflow.progress import WorkflowProgress
 from tests.fakes import Invalid, Raises, Text, Valid, fake_model
 
 
@@ -23,10 +24,11 @@ EXPLANATION = Explanation(
 )
 
 
-def run(model, recursion_limit=10, analysis_id=None):
+def run(model, recursion_limit=10, analysis_id=None, progress=None):
     return run_workflow(
         model,
         analysis_id=analysis_id,
+        progress=progress,
         image_bytes=b"fake-image",
         image_media_type="image/png",
         recursion_limit=recursion_limit,
@@ -72,14 +74,15 @@ def test_no_text_stops_after_extract(has_text, text, monkeypatch):
     for name in ("clean", "classify", "generate"):
         monkeypatch.setattr(graph_module, name, forbidden(name))
     model = fake_model(extracted(text, has_text=has_text, input_tokens=7, output_tokens=2))
+    progress = WorkflowProgress()
 
-    state = run(model)
+    state = run(model, progress=progress)
 
     assert state["failure_reason"] == "no_text_found"
     assert len(model.calls) == 1  # extract only
     for key in ("raw_text", "cleaned_text", "classification", "explanation"):
         assert key not in state
-    assert (state["input_tokens"], state["output_tokens"]) == (7, 2)
+    assert (progress.input_tokens, progress.output_tokens) == (7, 2)
 
 
 def test_normal_extraction_continues_to_clean():
@@ -147,10 +150,12 @@ def test_token_usage_accumulates_across_nodes():
         Valid(EXPLANATION, input_tokens=50, output_tokens=6),
     )
 
-    state = run(model)
+    progress = WorkflowProgress()
 
-    assert state["input_tokens"] == 100 + 20 + 30 + 40 + 50
-    assert state["output_tokens"] == 10 + 5 + 3 + 4 + 6
+    run(model, progress=progress)
+
+    assert progress.input_tokens == 100 + 20 + 30 + 40 + 50
+    assert progress.output_tokens == 10 + 5 + 3 + 4 + 6
 
 
 def test_provider_failure_in_text_node_maps_to_unavailable():
@@ -174,3 +179,26 @@ def test_conditional_edge_after_extract_has_labelled_routes():
 
     assert "extract -. &nbsp;has text&nbsp; .-> clean;" in mermaid
     assert "extract -. &nbsp;no text&nbsp; .-> __end__;" in mermaid
+
+
+def test_progress_tracks_tokens_and_text_when_the_run_fails():
+    progress = WorkflowProgress()
+    model = fake_model(
+        extracted("raw", input_tokens=10, output_tokens=1),
+        Text("clean", input_tokens=20, output_tokens=2),
+        Invalid(input_tokens=30, output_tokens=3),
+        Invalid(input_tokens=40, output_tokens=4),
+    )
+
+    with pytest.raises(InvalidLLMOutputError):
+        run_workflow(
+            model,
+            image_bytes=b"x",
+            image_media_type="image/png",
+            recursion_limit=10,
+            progress=progress,
+        )
+
+    assert (progress.input_tokens, progress.output_tokens) == (100, 10)
+    assert (progress.raw_text, progress.cleaned_text) == ("raw", "clean")
+    assert progress.extracted_text == "clean"

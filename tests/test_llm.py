@@ -152,6 +152,7 @@ def test_factory_builds_anthropic_model_without_network():
 def test_factory_passes_max_retries_and_timeout_to_the_sdk():
     settings = Settings(
         _env_file=None,
+        llm_provider="anthropic",
         llm_model="test-model",
         anthropic_api_key="k",
         llm_max_retries=5,
@@ -174,5 +175,6 @@ def test_factory_requires_model_and_key_for_anthropic(missing, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("LLM_MODEL", raising=False)
     values = {"llm_model": "test-model", "anthropic_api_key": "k", missing: None}
+    values["llm_provider"] = "anthropic"  # the test env defaults to the fake provider
     with pytest.raises(ValueError, match=missing.upper()):
         create_chat_model(Settings(_env_file=None, **values))

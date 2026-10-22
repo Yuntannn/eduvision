@@ -49,10 +49,18 @@ def call_structured[T: BaseModel](
         try:
             result = structured.invoke(attempt_messages)
         except UNAVAILABLE_EXCEPTIONS as exc:
-            raise LLMUnavailableError(f"LLM provider unavailable: {type(exc).__name__}") from exc
+            raise LLMUnavailableError(
+                f"LLM provider unavailable: {type(exc).__name__}",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            ) from exc
 
         if not isinstance(result, dict):
-            raise InvalidLLMOutputError("Structured output was not returned with the raw message.")
+            raise InvalidLLMOutputError(
+                "Structured output was not returned with the raw message.",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
 
         raw = result.get("raw")
         if isinstance(raw, AIMessage) and raw.usage_metadata:
@@ -67,7 +75,9 @@ def call_structured[T: BaseModel](
         logger.warning("Invalid %s output (attempt %d)", schema.__name__, attempt)
         if attempt == 2:
             raise InvalidLLMOutputError(
-                f"{schema.__name__} output was invalid after one retry: {error}"
+                f"{schema.__name__} output was invalid after one retry: {error}",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             )
         attempt_messages = [
             *messages,

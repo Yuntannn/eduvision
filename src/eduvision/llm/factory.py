@@ -5,6 +5,22 @@ from pydantic import SecretStr
 from eduvision.config import Settings
 
 
+def validate_llm_settings(settings: Settings) -> None:
+    """Raise ValueError naming every setting the configured provider needs but lacks."""
+    if settings.llm_provider != "anthropic":
+        return
+    missing = [
+        name
+        for name, value in (
+            ("LLM_MODEL", settings.llm_model),
+            ("ANTHROPIC_API_KEY", settings.anthropic_api_key),
+        )
+        if not value
+    ]
+    if missing:
+        raise ValueError(f"LLM_PROVIDER=anthropic requires these settings: {', '.join(missing)}.")
+
+
 def create_chat_model(settings: Settings, *, fake: BaseChatModel | None = None) -> BaseChatModel:
     """Build the chat model for `settings.llm_provider`.
 
@@ -15,10 +31,8 @@ def create_chat_model(settings: Settings, *, fake: BaseChatModel | None = None) 
             raise ValueError("LLM_PROVIDER=fake requires a fake model to be passed in.")
         return fake
 
-    if not settings.llm_model:
-        raise ValueError("LLM_MODEL must be set when LLM_PROVIDER=anthropic.")
-    if not settings.anthropic_api_key:
-        raise ValueError("ANTHROPIC_API_KEY must be set when LLM_PROVIDER=anthropic.")
+    validate_llm_settings(settings)
+    assert settings.llm_model and settings.anthropic_api_key  # checked by validate_llm_settings
     return ChatAnthropic(
         model=settings.llm_model,
         api_key=SecretStr(settings.anthropic_api_key),

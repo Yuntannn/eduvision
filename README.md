@@ -20,6 +20,16 @@ The API entry point is added in EDU-2:
 uv run uvicorn eduvision.main:create_app --factory --reload
 ```
 
+The server refuses to start unless `LLM_MODEL` and `ANTHROPIC_API_KEY` are set (in `.env` or the
+environment).
+
+For local work without an API key, start it with `LLM_PROVIDER=fake`. Analysis requests won't
+work in that mode:
+
+```bash
+LLM_PROVIDER=fake uv run uvicorn eduvision.main:create_app --factory --reload
+```
+
 ## Workflow
 
 Each analysis runs a fixed LangGraph pipeline: extract the text, clean it, classify it, then

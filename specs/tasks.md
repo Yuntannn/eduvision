@@ -119,6 +119,7 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 - [ ] `api/analyses.py` → `POST /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `GET /api/v1/analyses`
 - [ ] Map errors to status codes (404, 422, 502, 500) per design §6
 - [ ] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
+- [ ] Return timestamps as UTC-aware ISO 8601 strings (SQLite drops tzinfo on read).
 
 **Done when:** upload → analyse → get → list works through the API with the fake model.
 **Commit:** `feat: add analysis endpoints with persistence and error handling`

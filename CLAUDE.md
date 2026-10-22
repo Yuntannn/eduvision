@@ -46,3 +46,5 @@ uv run pytest                    # tests
 
 **Always run all checks before committing** and make sure they pass:
 `ruff check .`, `ruff format --check .`, `mypy src`, `pytest`.
+
+Stop any running dev server before running pytest. The test suite fails if ./data changes during a test run.

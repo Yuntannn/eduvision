@@ -6,6 +6,13 @@ ContentType = Literal["definition", "worked_example", "exercise", "notes", "diag
 Difficulty = Literal["beginner", "intermediate", "advanced"]
 
 
+class ExtractionResult(BaseModel):
+    """What the extract step read from the image (R3.2, R3.6)."""
+
+    has_text: bool = Field(description="True only if the image contains readable, meaningful text.")
+    text: str = Field(description="The transcribed text; empty when has_text is false.")
+
+
 class Classification(BaseModel):
     """What the extracted content is about (R3.3)."""
 

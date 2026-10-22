@@ -98,12 +98,12 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-6-workflow`
 **Covers:** R3.2, R3.6, R3.8, R5.1
 
-- [ ] `workflow/state.py`
-- [ ] `workflow/prompts.py` (one prompt per node; extract prompt defines the `NO_TEXT_FOUND` sentinel)
-- [ ] `workflow/nodes.py` → `extract`, `clean`, `classify`, `generate`; each adds token usage to state and logs duration
-- [ ] `workflow/graph.py` → build and compile the graph, conditional edge after `extract`
-- [ ] Run function that applies `recursion_limit` and maps `GraphRecursionError`
-- [ ] Tests: happy path (all fields populated), no text found (stops after extract), invalid output twice (fails with `invalid_llm_output`), step limit exceeded, token usage accumulated
+- [x] `workflow/state.py`
+- [x] `workflow/prompts.py` (one prompt per node; extract uses structured output `ExtractionResult(has_text, text)`; no text if `has_text` is false or `text` is blank)
+- [x] `workflow/nodes.py` → `extract`, `clean`, `classify`, `generate`; each adds token usage to state and logs duration
+- [x] `workflow/graph.py` → build and compile the graph, conditional edge after `extract`
+- [x] Run function that applies `recursion_limit` and maps `GraphRecursionError`
+- [x] Tests: happy path (all fields populated), no text found (stops after extract), invalid output twice (fails with `invalid_llm_output`), step limit exceeded, token usage accumulated
 
 **Done when:** the full workflow runs end to end with the fake model.
 **Commit:** `feat: add LangGraph analysis workflow with extract, clean, classify and generate nodes`

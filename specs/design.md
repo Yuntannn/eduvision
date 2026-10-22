@@ -70,7 +70,7 @@ eduvision/
 │   ├── schemas/
 │   │   ├── upload.py           # API request/response models
 │   │   ├── analysis.py
-│   │   └── llm_outputs.py      # Classification, Explanation (structured outputs)
+│   │   └── llm_outputs.py      # ExtractionResult, Classification, Explanation (structured outputs)
 │   ├── db/
 │   │   ├── session.py
 │   │   ├── models.py           # SQLModel tables
@@ -233,14 +233,14 @@ class AnalysisState(TypedDict, total=False):
 
 | Node | Input | Output | LLM call |
 |---|---|---|---|
-| `extract` | image | `raw_text` | Vision call (image + instruction). Returns plain text. If the model returns an empty result or the sentinel `NO_TEXT_FOUND`, set `failure_reason = "no_text_found"`. |
+| `extract` | image | `raw_text` | Vision call (image + instruction), structured output → `ExtractionResult(has_text, text)`. Unless `has_text` is true and `text` is non-empty after stripping, set `failure_reason = "no_text_found"`. |
 | `clean` | `raw_text` | `cleaned_text` | Text call. Fix obvious recognition errors; must not add new content. |
 | `classify` | `cleaned_text` | `classification` | Structured output → `Classification` |
 | `generate` | `cleaned_text`, `classification` | `explanation` | Structured output → `Explanation` |
 
 ### Structured outputs and retry (`llm/structured.py`)
 
-- `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes.
+- `ExtractionResult`, `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes.
 - Helper `call_structured(model, schema, messages)`:
   1. Calls `model.with_structured_output(schema, include_raw=True)`.
   2. If parsing or validation fails, appends a message containing the validation error and retries **once**.

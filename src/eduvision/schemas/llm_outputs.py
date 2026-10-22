@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ContentType = Literal["definition", "worked_example", "exercise", "notes", "diagram", "other"]
 Difficulty = Literal["beginner", "intermediate", "advanced"]
@@ -29,6 +29,14 @@ class Classification(BaseModel):
     topic: str = Field(min_length=1, description="Short topic, e.g. 'photosynthesis'.")
     content_type: ContentType
     difficulty: Difficulty
+
+    @field_validator("subject", "topic")
+    @classmethod
+    def _lowercase(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
 
 
 class Explanation(BaseModel):

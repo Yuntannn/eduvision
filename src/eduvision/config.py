@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     anthropic_api_key: str | None = None
     llm_timeout_seconds: int = 60
+    llm_max_retries: int = 2
     workflow_recursion_limit: int = 10
     upload_dir: str = "./data/uploads"
     max_upload_bytes: int = 10_485_760

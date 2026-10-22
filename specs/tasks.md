@@ -82,12 +82,12 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-5-llm-layer`
 **Covers:** R3.3, R3.4, R3.7, NFR2, NFR6
 
-- [ ] `schemas/llm_outputs.py` with `Classification` and `Explanation` (Literal enums, list length limits)
-- [ ] `llm/factory.py` → returns a chat model based on `LLM_PROVIDER` (`anthropic` or `fake`)
-- [ ] `llm/structured.py` → `call_structured()` with one retry and `InvalidLLMOutputError`
-- [ ] Error types: `InvalidLLMOutputError`, `LLMUnavailableError`
-- [ ] `tests/fakes.py` → scripted fake chat model (valid output, invalid output, raise error, token usage)
-- [ ] Tests: valid on first try, invalid then valid (retry works), invalid twice (raises), token usage is returned
+- [x] `schemas/llm_outputs.py` with `Classification` and `Explanation` (Literal enums, list length limits)
+- [x] `llm/factory.py` → returns a chat model based on `LLM_PROVIDER` (`anthropic` or `fake`)
+- [x] `llm/structured.py` → `call_structured()` with one retry and `InvalidLLMOutputError`
+- [x] Error types: `InvalidLLMOutputError`, `LLMUnavailableError`
+- [x] `tests/fakes.py` → scripted fake chat model (valid output, invalid output, raise error, token usage)
+- [x] Tests: valid on first try, invalid then valid (retry works), invalid twice (raises), token usage is returned
 
 **Done when:** structured-output tests pass using only the fake model.
 **Commit:** `feat: add LLM factory, structured output helper with retry, and fake model`
@@ -120,6 +120,7 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 - [ ] Map errors to status codes (404, 422, 502, 500) per design §6
 - [ ] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
 - [ ] Return timestamps as UTC-aware ISO 8601 strings (SQLite drops tzinfo on read).
+- [ ] `call_structured` and the workflow are synchronous, so define the analysis endpoint with `def`, not `async def`, so FastAPI runs it in a threadpool.
 
 **Done when:** upload → analyse → get → list works through the API with the fake model.
 **Commit:** `feat: add analysis endpoints with persistence and error handling`

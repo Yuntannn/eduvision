@@ -114,3 +114,5 @@ This spec covers the **basic backend version only**:
 | 5 | Eval harness (fixed test images, accuracy / latency / cost report) |
 | 6 | Next.js frontend |
 | 7 | Deployment (Docker, cloud hosting, CI/CD) |
+| Later | Downscale large images before sending them to the model (cuts tokens and latency) |
+| Later | Validate Mermaid output before storing it, and retry or drop an invalid diagram |

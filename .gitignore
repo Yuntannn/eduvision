@@ -17,6 +17,10 @@ htmlcov/
 .env
 data/
 
+# Sample images stay local (use your own); only the README is tracked
+samples/*
+!samples/README.md
+
 # OS
 .DS_Store
 

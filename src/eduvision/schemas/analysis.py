@@ -22,6 +22,7 @@ class AnalysisResponse(BaseModel):
     status: str
     failure_reason: str | None
     extracted_text: str | None
+    layout: str | None
     classification: Classification | None
     explanation: Explanation | None
     usage: Usage
@@ -42,6 +43,7 @@ class AnalysisResponse(BaseModel):
             status=analysis.status,
             failure_reason=analysis.failure_reason,
             extracted_text=analysis.extracted_text,
+            layout=analysis.layout,
             classification=(
                 Classification.model_validate_json(analysis.classification_json)
                 if analysis.classification_json

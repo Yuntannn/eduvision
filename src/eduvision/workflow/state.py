@@ -8,6 +8,7 @@ class AnalysisState(TypedDict, total=False):
     image_bytes: bytes
     image_media_type: str
     raw_text: str
+    layout: str  # only set when the extract step described one
     cleaned_text: str
     classification: Classification
     explanation: Explanation

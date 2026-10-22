@@ -8,6 +8,7 @@ class WorkflowProgress:
     input_tokens: int = 0
     output_tokens: int = 0
     raw_text: str | None = None
+    layout: str | None = None
     cleaned_text: str | None = None
 
     def add_tokens(self, input_tokens: int, output_tokens: int) -> None:

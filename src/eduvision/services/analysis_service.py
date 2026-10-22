@@ -96,6 +96,7 @@ class AnalysisService:
         analysis.input_tokens = progress.input_tokens
         analysis.output_tokens = progress.output_tokens
         analysis.extracted_text = progress.extracted_text
+        analysis.layout = progress.layout
 
         if failure_reason is None:
             analysis.status = "completed"

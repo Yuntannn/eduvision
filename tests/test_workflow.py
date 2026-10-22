@@ -8,8 +8,9 @@ from eduvision.workflow.progress import WorkflowProgress
 from tests.fakes import Invalid, Raises, Text, Valid, fake_model
 
 
-def extracted(text, *, has_text=True, input_tokens=0, output_tokens=0):
-    return Valid(ExtractionResult(has_text=has_text, text=text), input_tokens, output_tokens)
+def extracted(text, *, has_text=True, layout=None, input_tokens=0, output_tokens=0):
+    result = ExtractionResult(has_text=has_text, text=text, layout=layout)
+    return Valid(result, input_tokens, output_tokens)
 
 
 CLASSIFICATION = Classification(
@@ -51,6 +52,48 @@ def test_happy_path_populates_every_field():
     assert state["explanation"] == EXPLANATION
     assert not state.get("failure_reason")
     assert len(model.calls) == 4
+
+
+def message_text(call):
+    return call[-1].content
+
+
+def test_layout_reaches_classify_and_generate_but_not_clean():
+    model = fake_model(
+        extracted("Water\nCloud", layout="Arrow from Water up to Cloud"),
+        Text("Water\nCloud"),
+        Valid(CLASSIFICATION),
+        Valid(EXPLANATION),
+    )
+    progress = WorkflowProgress()
+
+    state = run(model, progress=progress)
+
+    assert state["layout"] == "Arrow from Water up to Cloud"
+    assert progress.layout == "Arrow from Water up to Cloud"
+    clean_call, classify_call, generate_call = model.calls[1:]
+    assert "Arrow from Water" not in message_text(clean_call)
+    assert message_text(classify_call) == "Water\nCloud\n\nLayout:\nArrow from Water up to Cloud"
+    assert "Content:\nWater\nCloud\n\nLayout:\nArrow from Water up to Cloud" in message_text(
+        generate_call
+    )
+
+
+@pytest.mark.parametrize("layout", [None, "", "  \n "])
+def test_no_layout_is_left_out_of_state_and_prompts(layout):
+    model = fake_model(
+        extracted("Photosynthesis", layout=layout),
+        Text("Photosynthesis"),
+        Valid(CLASSIFICATION),
+        Valid(EXPLANATION),
+    )
+    progress = WorkflowProgress()
+
+    state = run(model, progress=progress)
+
+    assert "layout" not in state
+    assert progress.layout is None
+    assert all("Layout" not in message_text(call) for call in model.calls[1:])
 
 
 NO_TEXT_REPLIES = [

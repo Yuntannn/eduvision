@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from eduvision.api import health
+from eduvision.api import health, uploads
 from eduvision.api.errors import register_error_handlers
 from eduvision.config import get_settings
 from eduvision.db.session import create_db_and_tables, create_db_engine
@@ -26,4 +26,5 @@ def create_app() -> FastAPI:
     app = FastAPI(title="EduVision", lifespan=lifespan)
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(uploads.router)
     return app

@@ -131,14 +131,14 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-8-smoke-test-docs`
 **Covers:** NFR4, Definition of Done
 
-- [ ] Add 2–3 sample images to `samples/` (one printed, one handwritten, one with no text)
-- [ ] Add `scripts/smoke_test.py` that uploads and analyses a sample against the real model (skipped unless `ANTHROPIC_API_KEY` is set; not part of `pytest`)
-- [ ] Run it manually and tune prompts if outputs are poor
-- [ ] Complete `README.md`: overview, architecture diagram, setup, config, run, test, example request/response, future phases
-- [ ] Record any prompt changes and what you fixed in `docs/notes.md` (useful for interviews)
+- [x] Document the sample set in `samples/README.md` (printed, handwritten, no_text, diagram); the images themselves are git-ignored so everyone uses their own, not copyrighted ones
+- [x] Add `scripts/smoke_test.py` that uploads and analyses a sample against the real model (skipped unless `ANTHROPIC_API_KEY` is set; not part of `pytest`)
+- [x] Run it manually and tune prompts if outputs are poor
+- [x] Complete `README.md`: overview, architecture diagram, setup, config, run, test, example request/response, future phases
+- [x] Record any prompt changes and what you fixed in `docs/notes.md` (useful for interviews)
 
 **Done when:** a real image produces a valid explanation, and a new developer can follow the README.
-**Commit:** `docs: add README, samples and real-model smoke test`
+**Commit:** `docs: add README, sample guide and real-model smoke test`
 
 ---
 

@@ -19,8 +19,8 @@
 
 ```
             ┌─────────────────────────────────────────────┐
- Client ──► │ FastAPI routers (api/)                       │
- (Swagger,  │   /health  /api/v1/uploads  /api/v1/analyses │
+ Client ──► │ FastAPI routers (api/)                      │
+ (Swagger,  │   /health  /api/v1/uploads  /api/v1/analyses│
   curl)     └──────────────┬──────────────────────────────┘
                            │
                 ┌──────────▼───────────┐
@@ -34,9 +34,9 @@
         └──────────────┘     └─────┬──────────────────────────┘
                                    │
                          ┌─────────▼─────────┐
-                         │ LLM provider       │  llm/factory.py
-                         │ (real or fake)     │
-                         └────────────────────┘
+                         │ LLM provider      │  llm/factory.py
+                         │ (real or fake)    │
+                         └───────────────────┘
 ```
 
 **Layering rules**
@@ -70,7 +70,7 @@ eduvision/
 │   ├── schemas/
 │   │   ├── upload.py           # API request/response models
 │   │   ├── analysis.py
-│   │   └── llm_outputs.py      # Classification, Explanation (structured outputs)
+│   │   └── llm_outputs.py      # ExtractionResult, Classification, Explanation (structured outputs)
 │   ├── db/
 │   │   ├── session.py
 │   │   ├── models.py           # SQLModel tables
@@ -104,8 +104,8 @@ eduvision/
 | Variable | Default | Notes |
 |---|---|---|
 | `LLM_PROVIDER` | `anthropic` | `anthropic` or `fake` |
-| `LLM_MODEL` | *(required for real provider)* | Any vision-capable model ID |
-| `ANTHROPIC_API_KEY` | – | Required when provider is `anthropic` |
+| `LLM_MODEL` | *(required for real provider)* | Any vision-capable model ID. Checked at startup. |
+| `ANTHROPIC_API_KEY` | – | Required when provider is `anthropic`. Checked at startup. |
 | `LLM_TIMEOUT_SECONDS` | `60` | Per LLM call |
 | `WORKFLOW_RECURSION_LIMIT` | `10` | Max graph steps |
 | `UPLOAD_DIR` | `./data/uploads` | Created on startup if missing |
@@ -128,13 +128,16 @@ eduvision/
 
 ### `Analysis` table
 
+There is no migration tool: after a schema change, delete the dev database (`data/eduvision.db`) so it is recreated on startup.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID (str) | Primary key |
 | `upload_id` | UUID (str) | FK → `Upload.id` |
 | `status` | str | `pending`, `completed`, `failed` |
-| `failure_reason` | str \| null | `no_text_found`, `invalid_llm_output`, `step_limit_exceeded`, `llm_unavailable` |
-| `extracted_text` | text \| null | After the Clean step |
+| `failure_reason` | str \| null | `no_text_found`, `invalid_llm_output`, `step_limit_exceeded`, `llm_unavailable`, `internal_error` |
+| `extracted_text` | text \| null | After the Clean step; only text visible in the image |
+| `layout` | text \| null | Description of arrows, shapes or positions from the Extract step; null for plain text |
 | `classification_json` | text \| null | Serialised `Classification` |
 | `explanation_json` | text \| null | Serialised `Explanation` |
 | `input_tokens` | int | Default 0 |
@@ -158,7 +161,11 @@ eduvision/
 ### `POST /api/v1/analyses`
 - Request: `{ "upload_id": "uuid" }`
 - `201` → `AnalysisResponse` (below)
-- Errors: `404` (upload not found), `422` (no text found), `502` (LLM unavailable), `500` (other failures, analysis still saved as `failed`)
+- Errors: `404` (upload not found), `422` (no text found), `502` (LLM unavailable), `500` (`invalid_llm_output`, `step_limit_exceeded`, `internal_error`; the analysis is still saved as `failed`)
+- Every failed-analysis error (422, 502, 500) also carries the saved analysis's id so the client can fetch it:
+```json
+{ "error": { "code": "no_text_found", "message": "No meaningful text could be found in the image.", "analysis_id": "uuid" } }
+```
 
 ### `GET /api/v1/analyses/{analysis_id}`
 `200` → `AnalysisResponse`, or `404`
@@ -174,6 +181,7 @@ eduvision/
   "status": "completed",
   "failure_reason": null,
   "extracted_text": "Photosynthesis is the process...",
+  "layout": null,
   "classification": {
     "subject": "biology",
     "topic": "photosynthesis",
@@ -197,6 +205,7 @@ eduvision/
 ```json
 { "error": { "code": "unsupported_media_type", "message": "Only JPEG, PNG and WebP images are supported." } }
 ```
+Only errors for a failed analysis add `analysis_id` (see `POST /api/v1/analyses`).
 
 ## 7. Workflow Design (LangGraph)
 
@@ -221,26 +230,25 @@ class AnalysisState(TypedDict, total=False):
     image_bytes: bytes
     image_media_type: str
     raw_text: str
+    layout: str  # only set when Extract described one
     cleaned_text: str
     classification: Classification
     explanation: Explanation
     failure_reason: str | None
-    input_tokens: int      # accumulated across nodes
-    output_tokens: int
 ```
 
 ### Nodes
 
 | Node | Input | Output | LLM call |
 |---|---|---|---|
-| `extract` | image | `raw_text` | Vision call (image + instruction). Returns plain text. If the model returns an empty result or the sentinel `NO_TEXT_FOUND`, set `failure_reason = "no_text_found"`. |
+| `extract` | image | `raw_text`, `layout` | Vision call (image + instruction), structured output → `ExtractionResult(has_text, text, layout)`; `text` holds only visible text, `layout` any description of arrows, shapes or positions. Unless `has_text` is true and `text` is non-empty after stripping, set `failure_reason = "no_text_found"`. |
 | `clean` | `raw_text` | `cleaned_text` | Text call. Fix obvious recognition errors; must not add new content. |
-| `classify` | `cleaned_text` | `classification` | Structured output → `Classification` |
-| `generate` | `cleaned_text`, `classification` | `explanation` | Structured output → `Explanation` |
+| `classify` | `cleaned_text`, `layout` | `classification` | Structured output → `Classification` |
+| `generate` | `cleaned_text`, `layout`, `classification` | `explanation` | Structured output → `Explanation` |
 
 ### Structured outputs and retry (`llm/structured.py`)
 
-- `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes.
+- `ExtractionResult`, `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes. `Classification` lowercases and strips `subject` and `topic` in a validator.
 - Helper `call_structured(model, schema, messages)`:
   1. Calls `model.with_structured_output(schema, include_raw=True)`.
   2. If parsing or validation fails, appends a message containing the validation error and retries **once**.
@@ -251,6 +259,8 @@ class AnalysisState(TypedDict, total=False):
 
 - The graph is invoked with `config={"recursion_limit": settings.workflow_recursion_limit}`. `GraphRecursionError` → `step_limit_exceeded`.
 - Provider timeouts / connection errors → `LLMUnavailableError` → `llm_unavailable`.
+- Any other unexpected exception → `internal_error` (the response does not expose the exception text).
+- A `WorkflowProgress` tracker is passed to the workflow (via the LangGraph config). Nodes record their tokens and text in it, so a failed analysis still saves the tokens spent and any text extracted before the failure.
 - `analysis_service` catches all workflow exceptions, saves the analysis as `failed` with the mapped reason, then re-raises a typed error that `api/errors.py` maps to the HTTP status in Section 6.
 
 ## 8. Logging

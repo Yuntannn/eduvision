@@ -71,6 +71,8 @@ This spec covers the **basic backend version only**:
 - **R3.7** IF an LLM step returns output that does not match the expected schema THEN the system SHALL retry that step once, passing the validation error back to the model. IF the retry also fails THEN the analysis SHALL be marked `failed` with reason `invalid_llm_output`.
 - **R3.8** The workflow SHALL enforce a maximum number of steps. IF the limit is reached THEN the analysis SHALL be marked `failed` with reason `step_limit_exceeded`.
 - **R3.9** IF the LLM provider is unavailable or times out THEN the analysis SHALL be marked `failed` with reason `llm_unavailable` and the API SHALL return `502`.
+- **R3.10** IF any other unexpected error occurs during analysis THEN the analysis SHALL be marked `failed` with reason `internal_error` and the API SHALL return `500` without exposing internal details.
+- **R3.11** A failed analysis SHALL keep the token usage, duration and any extracted text produced before the failure, and the error response SHALL include its `analysis_id`.
 
 ### R4. Retrieve an analysis
 
@@ -112,3 +114,5 @@ This spec covers the **basic backend version only**:
 | 5 | Eval harness (fixed test images, accuracy / latency / cost report) |
 | 6 | Next.js frontend |
 | 7 | Deployment (Docker, cloud hosting, CI/CD) |
+| Later | Downscale large images before sending them to the model (cuts tokens and latency) |
+| Later | Validate Mermaid output before storing it, and retry or drop an invalid diagram |

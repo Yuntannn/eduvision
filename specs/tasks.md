@@ -82,12 +82,12 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-5-llm-layer`
 **Covers:** R3.3, R3.4, R3.7, NFR2, NFR6
 
-- [ ] `schemas/llm_outputs.py` with `Classification` and `Explanation` (Literal enums, list length limits)
-- [ ] `llm/factory.py` → returns a chat model based on `LLM_PROVIDER` (`anthropic` or `fake`)
-- [ ] `llm/structured.py` → `call_structured()` with one retry and `InvalidLLMOutputError`
-- [ ] Error types: `InvalidLLMOutputError`, `LLMUnavailableError`
-- [ ] `tests/fakes.py` → scripted fake chat model (valid output, invalid output, raise error, token usage)
-- [ ] Tests: valid on first try, invalid then valid (retry works), invalid twice (raises), token usage is returned
+- [x] `schemas/llm_outputs.py` with `Classification` and `Explanation` (Literal enums, list length limits)
+- [x] `llm/factory.py` → returns a chat model based on `LLM_PROVIDER` (`anthropic` or `fake`)
+- [x] `llm/structured.py` → `call_structured()` with one retry and `InvalidLLMOutputError`
+- [x] Error types: `InvalidLLMOutputError`, `LLMUnavailableError`
+- [x] `tests/fakes.py` → scripted fake chat model (valid output, invalid output, raise error, token usage)
+- [x] Tests: valid on first try, invalid then valid (retry works), invalid twice (raises), token usage is returned
 
 **Done when:** structured-output tests pass using only the fake model.
 **Commit:** `feat: add LLM factory, structured output helper with retry, and fake model`
@@ -98,12 +98,12 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-6-workflow`
 **Covers:** R3.2, R3.6, R3.8, R5.1
 
-- [ ] `workflow/state.py`
-- [ ] `workflow/prompts.py` (one prompt per node; extract prompt defines the `NO_TEXT_FOUND` sentinel)
-- [ ] `workflow/nodes.py` → `extract`, `clean`, `classify`, `generate`; each adds token usage to state and logs duration
-- [ ] `workflow/graph.py` → build and compile the graph, conditional edge after `extract`
-- [ ] Run function that applies `recursion_limit` and maps `GraphRecursionError`
-- [ ] Tests: happy path (all fields populated), no text found (stops after extract), invalid output twice (fails with `invalid_llm_output`), step limit exceeded, token usage accumulated
+- [x] `workflow/state.py`
+- [x] `workflow/prompts.py` (one prompt per node; extract uses structured output `ExtractionResult(has_text, text)`; no text if `has_text` is false or `text` is blank)
+- [x] `workflow/nodes.py` → `extract`, `clean`, `classify`, `generate`; each adds token usage to state and logs duration
+- [x] `workflow/graph.py` → build and compile the graph, conditional edge after `extract`
+- [x] Run function that applies `recursion_limit` and maps `GraphRecursionError`
+- [x] Tests: happy path (all fields populated), no text found (stops after extract), invalid output twice (fails with `invalid_llm_output`), step limit exceeded, token usage accumulated
 
 **Done when:** the full workflow runs end to end with the fake model.
 **Commit:** `feat: add LangGraph analysis workflow with extract, clean, classify and generate nodes`
@@ -114,11 +114,13 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-7-analysis-endpoints`
 **Covers:** R3.1, R3.5 – R3.9, R4.1 – R4.3, R5.2
 
-- [ ] `schemas/analysis.py` (`CreateAnalysisRequest`, `AnalysisResponse`, list response)
-- [ ] `services/analysis_service.py` (load upload, run workflow, measure duration, save result or failure)
-- [ ] `api/analyses.py` → `POST /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `GET /api/v1/analyses`
-- [ ] Map errors to status codes (404, 422, 502, 500) per design §6
-- [ ] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
+- [x] `schemas/analysis.py` (`CreateAnalysisRequest`, `AnalysisResponse`, list response)
+- [x] `services/analysis_service.py` (load upload, run workflow, measure duration, save result or failure)
+- [x] `api/analyses.py` → `POST /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `GET /api/v1/analyses`
+- [x] Map errors to status codes (404, 422, 502, 500) per design §6
+- [x] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
+- [x] Return timestamps as UTC-aware ISO 8601 strings (SQLite drops tzinfo on read).
+- [x] `call_structured` and the workflow are synchronous, so define the analysis endpoint with `def`, not `async def`, so FastAPI runs it in a threadpool.
 
 **Done when:** upload → analyse → get → list works through the API with the fake model.
 **Commit:** `feat: add analysis endpoints with persistence and error handling`
@@ -129,14 +131,14 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-8-smoke-test-docs`
 **Covers:** NFR4, Definition of Done
 
-- [ ] Add 2–3 sample images to `samples/` (one printed, one handwritten, one with no text)
-- [ ] Add `scripts/smoke_test.py` that uploads and analyses a sample against the real model (skipped unless `ANTHROPIC_API_KEY` is set; not part of `pytest`)
-- [ ] Run it manually and tune prompts if outputs are poor
-- [ ] Complete `README.md`: overview, architecture diagram, setup, config, run, test, example request/response, future phases
-- [ ] Record any prompt changes and what you fixed in `docs/notes.md` (useful for interviews)
+- [x] Document the sample set in `samples/README.md` (printed, handwritten, no_text, diagram); the images themselves are git-ignored so everyone uses their own, not copyrighted ones
+- [x] Add `scripts/smoke_test.py` that uploads and analyses a sample against the real model (skipped unless `ANTHROPIC_API_KEY` is set; not part of `pytest`)
+- [x] Run it manually and tune prompts if outputs are poor
+- [x] Complete `README.md`: overview, architecture diagram, setup, config, run, test, example request/response, future phases
+- [x] Record any prompt changes and what you fixed in `docs/notes.md` (useful for interviews)
 
 **Done when:** a real image produces a valid explanation, and a new developer can follow the README.
-**Commit:** `docs: add README, samples and real-model smoke test`
+**Commit:** `docs: add README, sample guide and real-model smoke test`
 
 ---
 

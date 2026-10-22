@@ -143,5 +143,5 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 ---
 
 ## Release
-- [ ] Merge `develop` into `main`
-- [ ] Tag `v0.1.0`
+- [x] Merge `develop` into `main`
+- [x] Tag `v0.1.0`

@@ -20,6 +20,30 @@ The API entry point is added in EDU-2:
 uv run uvicorn eduvision.main:create_app --factory --reload
 ```
 
+## Workflow
+
+Each analysis runs a fixed LangGraph pipeline: extract the text, clean it, classify it, then
+generate the explanation.
+
+```mermaid
+graph TD;
+	__start__([start])
+	extract(extract)
+	clean(clean)
+	classify(classify)
+	generate(generate)
+	__end__([end])
+	__start__ --> extract;
+	extract -. has text .-> clean;
+	extract -. no text .-> __end__;
+	clean --> classify;
+	classify --> generate;
+	generate --> __end__;
+```
+
+The dotted edges are the conditional exit after extraction: when no text is found, the workflow
+stops there and the analysis fails with `no_text_found`.
+
 ## Test
 
 ```bash

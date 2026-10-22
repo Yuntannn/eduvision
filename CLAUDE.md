@@ -33,6 +33,10 @@ uv run pytest                    # tests
 - Git: branch `feature/EDU-<n>-<short-name>` from `develop`, Conventional Commits
   (`feat:`, `fix:`, `test:`, `chore:`, `docs:`), PR into `develop`.
 
+## Environment
+
+Environment: macOS with BSD command-line tools. Use the file edit tool or Python for in-place edits instead of sed -i.
+
 ## Workflow rules
 
 - Only work on the task I name. Never start or partially implement later tasks.

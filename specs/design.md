@@ -128,13 +128,16 @@ eduvision/
 
 ### `Analysis` table
 
+There is no migration tool: after a schema change, delete the dev database (`data/eduvision.db`) so it is recreated on startup.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID (str) | Primary key |
 | `upload_id` | UUID (str) | FK → `Upload.id` |
 | `status` | str | `pending`, `completed`, `failed` |
 | `failure_reason` | str \| null | `no_text_found`, `invalid_llm_output`, `step_limit_exceeded`, `llm_unavailable`, `internal_error` |
-| `extracted_text` | text \| null | After the Clean step |
+| `extracted_text` | text \| null | After the Clean step; only text visible in the image |
+| `layout` | text \| null | Description of arrows, shapes or positions from the Extract step; null for plain text |
 | `classification_json` | text \| null | Serialised `Classification` |
 | `explanation_json` | text \| null | Serialised `Explanation` |
 | `input_tokens` | int | Default 0 |
@@ -178,6 +181,7 @@ eduvision/
   "status": "completed",
   "failure_reason": null,
   "extracted_text": "Photosynthesis is the process...",
+  "layout": null,
   "classification": {
     "subject": "biology",
     "topic": "photosynthesis",
@@ -226,6 +230,7 @@ class AnalysisState(TypedDict, total=False):
     image_bytes: bytes
     image_media_type: str
     raw_text: str
+    layout: str  # only set when Extract described one
     cleaned_text: str
     classification: Classification
     explanation: Explanation
@@ -236,14 +241,14 @@ class AnalysisState(TypedDict, total=False):
 
 | Node | Input | Output | LLM call |
 |---|---|---|---|
-| `extract` | image | `raw_text` | Vision call (image + instruction), structured output → `ExtractionResult(has_text, text)`. Unless `has_text` is true and `text` is non-empty after stripping, set `failure_reason = "no_text_found"`. |
+| `extract` | image | `raw_text`, `layout` | Vision call (image + instruction), structured output → `ExtractionResult(has_text, text, layout)`; `text` holds only visible text, `layout` any description of arrows, shapes or positions. Unless `has_text` is true and `text` is non-empty after stripping, set `failure_reason = "no_text_found"`. |
 | `clean` | `raw_text` | `cleaned_text` | Text call. Fix obvious recognition errors; must not add new content. |
-| `classify` | `cleaned_text` | `classification` | Structured output → `Classification` |
-| `generate` | `cleaned_text`, `classification` | `explanation` | Structured output → `Explanation` |
+| `classify` | `cleaned_text`, `layout` | `classification` | Structured output → `Classification` |
+| `generate` | `cleaned_text`, `layout`, `classification` | `explanation` | Structured output → `Explanation` |
 
 ### Structured outputs and retry (`llm/structured.py`)
 
-- `ExtractionResult`, `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes.
+- `ExtractionResult`, `Classification` and `Explanation` are Pydantic models in `schemas/llm_outputs.py`, using `Literal` types for enum fields and `Field(min_length=..., max_length=...)` for list sizes. `Classification` lowercases and strips `subject` and `topic` in a validator.
 - Helper `call_structured(model, schema, messages)`:
   1. Calls `model.with_structured_output(schema, include_raw=True)`.
   2. If parsing or validation fails, appends a message containing the validation error and retries **once**.

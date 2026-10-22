@@ -64,6 +64,12 @@ def _call_structured[T: BaseModel](
     return result
 
 
+def _with_layout(text: str, state: AnalysisState) -> str:
+    """The content for a prompt: the text, plus the layout description when there is one."""
+    layout = state.get("layout")
+    return f"{text}\n\nLayout:\n{layout}" if layout else text
+
+
 def _call_text(model: BaseChatModel, messages: list[BaseMessage]) -> tuple[str, int, int]:
     """Plain-text call; returns the reply text and the tokens it used."""
     try:
@@ -102,6 +108,10 @@ def extract(state: AnalysisState, model: BaseChatModel, config: RunnableConfig) 
     else:
         update["raw_text"] = text
         progress.raw_text = text
+        layout = (result.parsed.layout or "").strip()
+        if layout:
+            update["layout"] = layout
+            progress.layout = layout
         _log_step(state, "extract", started, "ok")
     return update
 
@@ -124,7 +134,7 @@ def classify(state: AnalysisState, model: BaseChatModel, config: RunnableConfig)
     _log_start(state, "classify")
     messages: list[BaseMessage] = [
         SystemMessage(CLASSIFY_PROMPT),
-        HumanMessage(state["cleaned_text"]),
+        HumanMessage(_with_layout(state["cleaned_text"], state)),
     ]
     result = _call_structured(model, Classification, messages, progress)
     _log_step(state, "classify", started, "ok")
@@ -138,7 +148,10 @@ def generate(state: AnalysisState, model: BaseChatModel, config: RunnableConfig)
     classification = state["classification"].model_dump_json()
     messages: list[BaseMessage] = [
         SystemMessage(GENERATE_PROMPT),
-        HumanMessage(f"Classification:\n{classification}\n\nContent:\n{state['cleaned_text']}"),
+        HumanMessage(
+            f"Classification:\n{classification}\n\n"
+            f"Content:\n{_with_layout(state['cleaned_text'], state)}"
+        ),
     ]
     result = _call_structured(model, Explanation, messages, progress)
     _log_step(state, "generate", started, "ok")

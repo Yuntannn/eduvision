@@ -27,6 +27,7 @@ class Analysis(SQLModel, table=True):
     status: str = "pending"  # pending | completed | failed
     failure_reason: str | None = None
     extracted_text: str | None = None
+    layout: str | None = None
     classification_json: str | None = None
     explanation_json: str | None = None
     input_tokens: int = 0

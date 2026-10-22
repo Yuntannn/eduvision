@@ -10,7 +10,16 @@ class ExtractionResult(BaseModel):
     """What the extract step read from the image (R3.2, R3.6)."""
 
     has_text: bool = Field(description="True only if the image contains readable, meaningful text.")
-    text: str = Field(description="The transcribed text; empty when has_text is false.")
+    text: str = Field(
+        description="Only the text actually visible in the image; empty when has_text is false."
+    )
+    layout: str | None = Field(
+        default=None,
+        description=(
+            "Short description of arrows, shapes or positions in a diagram or figure; "
+            "null when the image is plain text."
+        ),
+    )
 
 
 class Classification(BaseModel):

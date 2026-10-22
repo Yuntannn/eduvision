@@ -21,8 +21,10 @@ EXPLANATION = Explanation(
 )
 
 
-def extracted(text: str, *, has_text: bool = True, **tokens: int) -> Valid:
-    return Valid(ExtractionResult(has_text=has_text, text=text), **tokens)
+def extracted(
+    text: str, *, has_text: bool = True, layout: str | None = None, **tokens: int
+) -> Valid:
+    return Valid(ExtractionResult(has_text=has_text, text=text, layout=layout), **tokens)
 
 
 def happy_script() -> list:
@@ -85,6 +87,35 @@ def test_create_analysis_returns_full_result(client: TestClient) -> None:
     assert body["usage"]["duration_ms"] >= 0
     for key in ("created_at", "updated_at"):
         assert body[key].endswith("Z") or body[key].endswith("+00:00")
+
+
+def test_layout_is_stored_and_returned(client: TestClient) -> None:
+    script = happy_script()
+    script[0] = extracted("Water\nCloud", layout="Arrow from Water up to Cloud")
+    use_model(client, fake_model(*script))
+
+    created = analyse(client).json()
+
+    assert created["layout"] == "Arrow from Water up to Cloud"
+    fetched = client.get(f"/api/v1/analyses/{created['analysis_id']}").json()
+    assert fetched["layout"] == "Arrow from Water up to Cloud"
+
+
+def test_layout_is_null_when_the_image_has_none(client: TestClient) -> None:
+    use_model(client, fake_model(*happy_script()))
+
+    assert analyse(client).json()["layout"] is None
+
+
+def test_layout_is_kept_when_a_later_step_fails(client: TestClient) -> None:
+    use_model(
+        client,
+        fake_model(extracted("raw text", layout="Arrow from A to B"), Raises(TimeoutError())),
+    )
+
+    saved = assert_failed(client, analyse(client), 502, "llm_unavailable")
+
+    assert saved["layout"] == "Arrow from A to B"
 
 
 def test_get_analysis_returns_the_stored_result(client: TestClient) -> None:

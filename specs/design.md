@@ -104,8 +104,8 @@ eduvision/
 | Variable | Default | Notes |
 |---|---|---|
 | `LLM_PROVIDER` | `anthropic` | `anthropic` or `fake` |
-| `LLM_MODEL` | *(required for real provider)* | Any vision-capable model ID |
-| `ANTHROPIC_API_KEY` | – | Required when provider is `anthropic` |
+| `LLM_MODEL` | *(required for real provider)* | Any vision-capable model ID. Checked at startup. |
+| `ANTHROPIC_API_KEY` | – | Required when provider is `anthropic`. Checked at startup. |
 | `LLM_TIMEOUT_SECONDS` | `60` | Per LLM call |
 | `WORKFLOW_RECURSION_LIMIT` | `10` | Max graph steps |
 | `UPLOAD_DIR` | `./data/uploads` | Created on startup if missing |
@@ -133,7 +133,7 @@ eduvision/
 | `id` | UUID (str) | Primary key |
 | `upload_id` | UUID (str) | FK → `Upload.id` |
 | `status` | str | `pending`, `completed`, `failed` |
-| `failure_reason` | str \| null | `no_text_found`, `invalid_llm_output`, `step_limit_exceeded`, `llm_unavailable` |
+| `failure_reason` | str \| null | `no_text_found`, `invalid_llm_output`, `step_limit_exceeded`, `llm_unavailable`, `internal_error` |
 | `extracted_text` | text \| null | After the Clean step |
 | `classification_json` | text \| null | Serialised `Classification` |
 | `explanation_json` | text \| null | Serialised `Explanation` |
@@ -158,7 +158,11 @@ eduvision/
 ### `POST /api/v1/analyses`
 - Request: `{ "upload_id": "uuid" }`
 - `201` → `AnalysisResponse` (below)
-- Errors: `404` (upload not found), `422` (no text found), `502` (LLM unavailable), `500` (other failures, analysis still saved as `failed`)
+- Errors: `404` (upload not found), `422` (no text found), `502` (LLM unavailable), `500` (`invalid_llm_output`, `step_limit_exceeded`, `internal_error`; the analysis is still saved as `failed`)
+- Every failed-analysis error (422, 502, 500) also carries the saved analysis's id so the client can fetch it:
+```json
+{ "error": { "code": "no_text_found", "message": "No meaningful text could be found in the image.", "analysis_id": "uuid" } }
+```
 
 ### `GET /api/v1/analyses/{analysis_id}`
 `200` → `AnalysisResponse`, or `404`
@@ -197,6 +201,7 @@ eduvision/
 ```json
 { "error": { "code": "unsupported_media_type", "message": "Only JPEG, PNG and WebP images are supported." } }
 ```
+Only errors for a failed analysis add `analysis_id` (see `POST /api/v1/analyses`).
 
 ## 7. Workflow Design (LangGraph)
 
@@ -225,8 +230,6 @@ class AnalysisState(TypedDict, total=False):
     classification: Classification
     explanation: Explanation
     failure_reason: str | None
-    input_tokens: int      # accumulated across nodes
-    output_tokens: int
 ```
 
 ### Nodes
@@ -251,6 +254,8 @@ class AnalysisState(TypedDict, total=False):
 
 - The graph is invoked with `config={"recursion_limit": settings.workflow_recursion_limit}`. `GraphRecursionError` → `step_limit_exceeded`.
 - Provider timeouts / connection errors → `LLMUnavailableError` → `llm_unavailable`.
+- Any other unexpected exception → `internal_error` (the response does not expose the exception text).
+- A `WorkflowProgress` tracker is passed to the workflow (via the LangGraph config). Nodes record their tokens and text in it, so a failed analysis still saves the tokens spent and any text extracted before the failure.
 - `analysis_service` catches all workflow exceptions, saves the analysis as `failed` with the mapped reason, then re-raises a typed error that `api/errors.py` maps to the HTTP status in Section 6.
 
 ## 8. Logging

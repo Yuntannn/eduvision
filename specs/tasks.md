@@ -114,13 +114,13 @@ Requirement IDs (e.g. R2.1) refer to `requirements.md`.
 **Branch:** `feature/EDU-7-analysis-endpoints`
 **Covers:** R3.1, R3.5 – R3.9, R4.1 – R4.3, R5.2
 
-- [ ] `schemas/analysis.py` (`CreateAnalysisRequest`, `AnalysisResponse`, list response)
-- [ ] `services/analysis_service.py` (load upload, run workflow, measure duration, save result or failure)
-- [ ] `api/analyses.py` → `POST /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `GET /api/v1/analyses`
-- [ ] Map errors to status codes (404, 422, 502, 500) per design §6
-- [ ] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
-- [ ] Return timestamps as UTC-aware ISO 8601 strings (SQLite drops tzinfo on read).
-- [ ] `call_structured` and the workflow are synchronous, so define the analysis endpoint with `def`, not `async def`, so FastAPI runs it in a threadpool.
+- [x] `schemas/analysis.py` (`CreateAnalysisRequest`, `AnalysisResponse`, list response)
+- [x] `services/analysis_service.py` (load upload, run workflow, measure duration, save result or failure)
+- [x] `api/analyses.py` → `POST /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `GET /api/v1/analyses`
+- [x] Map errors to status codes (404, 422, 502, 500) per design §6
+- [x] Tests for every status code; failed analyses are saved with the correct `failure_reason`; list is newest first with pagination
+- [x] Return timestamps as UTC-aware ISO 8601 strings (SQLite drops tzinfo on read).
+- [x] `call_structured` and the workflow are synchronous, so define the analysis endpoint with `def`, not `async def`, so FastAPI runs it in a threadpool.
 
 **Done when:** upload → analyse → get → list works through the API with the fake model.
 **Commit:** `feat: add analysis endpoints with persistence and error handling`

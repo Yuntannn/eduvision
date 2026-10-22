@@ -12,5 +12,3 @@ class AnalysisState(TypedDict, total=False):
     classification: Classification
     explanation: Explanation
     failure_reason: str | None
-    input_tokens: int  # accumulated across nodes
-    output_tokens: int

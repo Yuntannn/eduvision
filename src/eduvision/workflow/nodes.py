@@ -4,10 +4,13 @@ import time
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel
 
-from eduvision.llm.errors import UNAVAILABLE_EXCEPTIONS, LLMUnavailableError
-from eduvision.llm.structured import call_structured
+from eduvision.llm.errors import UNAVAILABLE_EXCEPTIONS, LLMError, LLMUnavailableError
+from eduvision.llm.structured import StructuredResult, call_structured
 from eduvision.schemas.llm_outputs import Classification, Explanation, ExtractionResult
+from eduvision.workflow.progress import WorkflowProgress
 from eduvision.workflow.prompts import (
     CLASSIFY_PROMPT,
     CLEAN_PROMPT,
@@ -39,6 +42,28 @@ def _log_step(state: AnalysisState, step: str, started: float, outcome: str) -> 
     )
 
 
+def _progress(config: RunnableConfig) -> WorkflowProgress:
+    """The run's progress tracker; a throwaway one when the node is called without it."""
+    progress = config.get("configurable", {}).get("progress")
+    return progress if isinstance(progress, WorkflowProgress) else WorkflowProgress()
+
+
+def _call_structured[T: BaseModel](
+    model: BaseChatModel,
+    schema: type[T],
+    messages: list[BaseMessage],
+    progress: WorkflowProgress,
+) -> StructuredResult[T]:
+    """call_structured, recording the tokens spent whether the call succeeds or fails."""
+    try:
+        result = call_structured(model, schema, messages)
+    except LLMError as exc:
+        progress.add_tokens(exc.input_tokens, exc.output_tokens)
+        raise
+    progress.add_tokens(result.input_tokens, result.output_tokens)
+    return result
+
+
 def _call_text(model: BaseChatModel, messages: list[BaseMessage]) -> tuple[str, int, int]:
     """Plain-text call; returns the reply text and the tokens it used."""
     try:
@@ -53,7 +78,8 @@ def _call_text(model: BaseChatModel, messages: list[BaseMessage]) -> tuple[str, 
     )
 
 
-def extract(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
+def extract(state: AnalysisState, model: BaseChatModel, config: RunnableConfig) -> AnalysisState:
+    progress = _progress(config)
     started = time.perf_counter()
     _log_start(state, "extract")
     image_b64 = base64.b64encode(state["image_bytes"]).decode("ascii")
@@ -66,52 +92,47 @@ def extract(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
             ]
         )
     ]
-    result = call_structured(model, ExtractionResult, messages)
+    result = _call_structured(model, ExtractionResult, messages, progress)
 
-    update: AnalysisState = {
-        "input_tokens": state.get("input_tokens", 0) + result.input_tokens,
-        "output_tokens": state.get("output_tokens", 0) + result.output_tokens,
-    }
+    update: AnalysisState = {}
     text = result.parsed.text.strip()
     if not result.parsed.has_text or not text:
         update["failure_reason"] = NO_TEXT_FAILURE
         _log_step(state, "extract", started, NO_TEXT_FAILURE)
     else:
         update["raw_text"] = text
+        progress.raw_text = text
         _log_step(state, "extract", started, "ok")
     return update
 
 
-def clean(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
+def clean(state: AnalysisState, model: BaseChatModel, config: RunnableConfig) -> AnalysisState:
+    progress = _progress(config)
     started = time.perf_counter()
     _log_start(state, "clean")
     messages: list[BaseMessage] = [SystemMessage(CLEAN_PROMPT), HumanMessage(state["raw_text"])]
     text, in_tokens, out_tokens = _call_text(model, messages)
+    progress.add_tokens(in_tokens, out_tokens)
+    progress.cleaned_text = text
     _log_step(state, "clean", started, "ok")
-    return {
-        "cleaned_text": text,
-        "input_tokens": state.get("input_tokens", 0) + in_tokens,
-        "output_tokens": state.get("output_tokens", 0) + out_tokens,
-    }
+    return {"cleaned_text": text}
 
 
-def classify(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
+def classify(state: AnalysisState, model: BaseChatModel, config: RunnableConfig) -> AnalysisState:
+    progress = _progress(config)
     started = time.perf_counter()
     _log_start(state, "classify")
     messages: list[BaseMessage] = [
         SystemMessage(CLASSIFY_PROMPT),
         HumanMessage(state["cleaned_text"]),
     ]
-    result = call_structured(model, Classification, messages)
+    result = _call_structured(model, Classification, messages, progress)
     _log_step(state, "classify", started, "ok")
-    return {
-        "classification": result.parsed,
-        "input_tokens": state.get("input_tokens", 0) + result.input_tokens,
-        "output_tokens": state.get("output_tokens", 0) + result.output_tokens,
-    }
+    return {"classification": result.parsed}
 
 
-def generate(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
+def generate(state: AnalysisState, model: BaseChatModel, config: RunnableConfig) -> AnalysisState:
+    progress = _progress(config)
     started = time.perf_counter()
     _log_start(state, "generate")
     classification = state["classification"].model_dump_json()
@@ -119,10 +140,6 @@ def generate(state: AnalysisState, model: BaseChatModel) -> AnalysisState:
         SystemMessage(GENERATE_PROMPT),
         HumanMessage(f"Classification:\n{classification}\n\nContent:\n{state['cleaned_text']}"),
     ]
-    result = call_structured(model, Explanation, messages)
+    result = _call_structured(model, Explanation, messages, progress)
     _log_step(state, "generate", started, "ok")
-    return {
-        "explanation": result.parsed,
-        "input_tokens": state.get("input_tokens", 0) + result.input_tokens,
-        "output_tokens": state.get("output_tokens", 0) + result.output_tokens,
-    }
+    return {"explanation": result.parsed}

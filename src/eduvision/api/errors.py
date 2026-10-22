@@ -11,22 +11,28 @@ logger = logging.getLogger(__name__)
 class AppError(Exception):
     """An error that maps to an HTTP status and the standard error body."""
 
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self, status_code: int, code: str, message: str, analysis_id: str | None = None
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.analysis_id = analysis_id
 
 
-def error_response(status_code: int, code: str, message: str) -> JSONResponse:
-    return JSONResponse(
-        status_code=status_code, content={"error": {"code": code, "message": message}}
-    )
+def error_response(
+    status_code: int, code: str, message: str, analysis_id: str | None = None
+) -> JSONResponse:
+    error = {"code": code, "message": message}
+    if analysis_id is not None:  # only failed analyses carry an id
+        error["analysis_id"] = analysis_id
+    return JSONResponse(status_code=status_code, content={"error": error})
 
 
 async def _handle_app_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AppError)
-    return error_response(exc.status_code, exc.code, exc.message)
+    return error_response(exc.status_code, exc.code, exc.message, exc.analysis_id)
 
 
 async def _handle_http_exception(_: Request, exc: Exception) -> JSONResponse:
